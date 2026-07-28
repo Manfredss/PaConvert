@@ -1,8 +1,8 @@
-from typing import List, Optional, Tuple, Union
-
 import paddle
 
 paddle.enable_compat(level=2)
+from typing import List, Optional, Tuple, Union
+
 print("#########################case1#########################")
 Union[Tuple, paddle.BoolTensor]
 print("#########################case2#########################")

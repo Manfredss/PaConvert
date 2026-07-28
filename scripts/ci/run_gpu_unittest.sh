@@ -40,11 +40,15 @@ echo "Checking code gpu unit test by pytest ..."
 set +e
 
 PYTEST_IGNORE=(
+    --ignore=tests/test_cuda_stream.py
+    --ignore=tests/test_cuda_CUDAGraph.py
+    --ignore=tests/test_cuda_set_stream.py
     --ignore=tests/test_hub_download_url_to_file.py
     --ignore=tests/test_hub_help.py
     --ignore=tests/test_hub_list.py
     --ignore=tests/test_hub_load.py
     --ignore=tests/test_hub_load_state_dict_from_url.py
+    --ignore=tests/test_set_num_interop_threads.py
 )
 
 # Run test_cuda_stream.py separately and FIRST (GPU state is clean),
@@ -64,18 +68,15 @@ cudagraph_exit=${PIPESTATUS[0]}
 python -m pytest -v -s -p no:warnings tests/test_cuda_set_stream.py 2>&1 | tee -a pytest.log
 setstream_exit=${PIPESTATUS[0]}
 
+python -m pytest -v -s -p no:warnings tests/test_set_num_interop_threads.py 2>&1 | tee -a pytest.log
+interop_threads_exit=${PIPESTATUS[0]}
+
 python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" \
-    --ignore=tests/test_cuda_stream.py \
-    --ignore=tests/test_cuda_CUDAGraph.py \
-    --ignore=tests/test_cuda_set_stream.py \
     -n 1 --reruns=3 ./tests 2>&1 | tee -a pytest.log
 check_errors=${PIPESTATUS[0]}
 if [ ${check_errors} -ne 0 ]; then
     echo "Rerun GPU unit test"
     python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" \
-        --ignore=tests/test_cuda_stream.py \
-        --ignore=tests/test_cuda_CUDAGraph.py \
-        --ignore=tests/test_cuda_set_stream.py \
         -n 1 --lf ./tests 2>&1 | tee -a pytest.log
     check_errors=${PIPESTATUS[0]}
 fi
@@ -89,6 +90,9 @@ if [ ${cudagraph_exit} -ne 0 ]; then
 fi
 if [ ${setstream_exit} -ne 0 ]; then
     check_errors=${setstream_exit}
+fi
+if [ ${interop_threads_exit} -ne 0 ]; then
+    check_errors=${interop_threads_exit}
 fi
 
 echo '******************************************************************************'

@@ -48,7 +48,14 @@ PYTEST_IGNORE=(
     --ignore=tests/test_hub_list.py
     --ignore=tests/test_hub_load.py
     --ignore=tests/test_hub_load_state_dict_from_url.py
+    --ignore=tests/test_set_num_interop_threads.py
 )
+
+python -m pytest -v -s -p no:warnings tests/test_set_num_interop_threads.py 2>&1 | tee -a pytest.log
+interop_threads_exit=${PIPESTATUS[0]}
+if [ ${interop_threads_exit} -ne 0 ]; then
+    check_errors=${interop_threads_exit}
+fi
 
 python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" --reruns=3 ./tests 2>&1 | tee pytest.log
 check_errors=${PIPESTATUS[0]}
