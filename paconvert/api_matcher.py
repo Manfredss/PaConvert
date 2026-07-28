@@ -392,6 +392,14 @@ class ChangePrefixMatcher(BaseMatcher):
         return "unchange"
 
     def get_paddle_class_nodes(self, func, args, kwargs):
+        if (
+            self.torch_api == "torch.Tensor.split"
+            and args
+            and isinstance(args[0], ast.Constant)
+            and isinstance(args[0].value, str)
+        ):
+            return "misidentify"
+
         if self.transformer.mode == "min":
             self.paddle_api = astor.to_source(func).strip("\n")
         else:
