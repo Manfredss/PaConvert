@@ -1692,9 +1692,7 @@
     "Matcher": "ChangePrefixMatcher"
   },
   "torch.Tensor.numel": {
-    "Matcher": "Func2Attribute",
-    "paddle_api": "paddle.Tensor.size",
-    "min_input_args": 0
+    "Matcher": "ChangePrefixMatcher"
   },
   "torch.Tensor.numpy": {
     "Matcher": "ChangePrefixMatcher"
@@ -2182,14 +2180,7 @@
     "Matcher": "ChangePrefixMatcher"
   },
   "torch.Tensor.type": {
-    "Matcher": "TensorTypeMatcher",
-    "paddle_api": "paddle.Tensor.astype",
-    "min_input_args": 0,
-    "args_list": [
-      "dtype",
-      "non_blocking",
-      "**kwargs"
-    ]
+    "Matcher": "ChangePrefixMatcher"
   },
   "torch.Tensor.type_as": {
     "Matcher": "ChangePrefixMatcher"
@@ -4218,8 +4209,7 @@
     }
   },
   "torch.distributions.categorical.Categorical": {
-    "Matcher": "ChangeAPIMatcher",
-    "paddle_api": "paddle.compat.distributions.categorical.Categorical"
+    "Matcher": "ChangePrefixMatcher"
   },
   "torch.distributions.cauchy.Cauchy": {
     "Matcher": "GenericMatcher",
@@ -6762,19 +6752,7 @@
     "Matcher": "ChangePrefixMatcher"
   },
   "torch.nn.PReLU": {
-    "Matcher": "GenericMatcher",
-    "paddle_api": "paddle.nn.PReLU",
-    "args_list": [
-      "num_parameters",
-      "init",
-      "device",
-      "dtype"
-    ],
-    "kwargs_change": {
-      "device": "",
-      "dtype": ""
-    },
-    "min_input_args": 0
+    "Matcher": "ChangePrefixMatcher"
   },
   "torch.nn.PairwiseDistance": {
     "Matcher": "ChangePrefixMatcher"

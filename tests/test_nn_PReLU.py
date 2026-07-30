@@ -292,3 +292,68 @@ def test_case_18():
         """
     )
     obj.run(pytorch_code, ["result"])
+
+
+def test_case_19():
+    pytorch_code = textwrap.dedent(
+        """
+        import torch
+        import torch.nn as nn
+        x = torch.tensor(
+            [[[-1.5, 0.5, 2.0], [-0.25, -2.0, 1.0]]],
+            dtype=torch.float32,
+        )
+        model1 = nn.PReLU(1, 0.3, "cpu")
+        model2 = nn.PReLU(1, 0.3, "cpu")
+        result1 = model1(x)
+        result2 = model2(x)
+        """
+    )
+    obj.run(pytorch_code, ["result1", "result2"])
+
+
+def test_case_20():
+    pytorch_code = textwrap.dedent(
+        """
+        import torch
+        import torch.nn as nn
+        x = torch.tensor(
+            [[-2.0, -0.5, 0.75, 1.5]],
+            dtype=torch.float32,
+        )
+        args = (1, 0.45, "cpu")
+        model = nn.PReLU(*args)
+        result = model(x)
+        """
+    )
+    obj.run(pytorch_code, ["result"])
+
+
+def test_case_21():
+    import importlib
+
+    import paddle
+    import torch
+
+    class GuardCheckingAPIBase(APIBase):
+        def compare(self, *args, **kwargs):
+            result = paddle.sort(paddle.to_tensor([2.0, 1.0]), dim=0)
+            assert hasattr(result, "values")
+            return super().compare(*args, **kwargs)
+
+    guard_obj = GuardCheckingAPIBase("torch.nn.PReLU")
+    native_prelu = paddle.nn.PReLU
+    native_torch = torch
+    pytorch_code = textwrap.dedent(
+        """
+        import torch
+        x = torch.tensor([[-2.0, -0.5, 0.75, 1.5]])
+        result = torch.nn.PReLU(1, 0.45)(x)
+        """
+    )
+
+    guard_obj.run(pytorch_code, ["result"])
+    guard_obj.run(pytorch_code, ["result"])
+
+    assert paddle.nn.PReLU is native_prelu
+    assert importlib.import_module("torch") is native_torch
