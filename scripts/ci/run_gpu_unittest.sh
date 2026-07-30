@@ -39,37 +39,27 @@ echo '**************************************************************************
 echo "Checking code gpu unit test by pytest ..."
 set +e
 
+ISOLATED_TESTS=(
+    tests/test_cuda_stream.py
+    tests/test_cuda_CUDAGraph.py
+    tests/test_cuda_set_stream.py
+    tests/test_set_num_interop_threads.py
+)
+
 PYTEST_IGNORE=(
-    --ignore=tests/test_cuda_stream.py
-    --ignore=tests/test_cuda_CUDAGraph.py
-    --ignore=tests/test_cuda_set_stream.py
     --ignore=tests/test_hub_download_url_to_file.py
     --ignore=tests/test_hub_help.py
     --ignore=tests/test_hub_list.py
     --ignore=tests/test_hub_load.py
     --ignore=tests/test_hub_load_state_dict_from_url.py
-    --ignore=tests/test_set_num_interop_threads.py
 )
+for test_file in "${ISOLATED_TESTS[@]}"; do
+    PYTEST_IGNORE+=(--ignore="${test_file}")
+done
 
-# Run test_cuda_stream.py separately and FIRST (GPU state is clean),
-# as it can segfault when run after other GPU tests (Paddle FullKernel issue).
-# Running in isolation prevents the segfault from killing the entire test batch.
-python -m pytest -v -s -p no:warnings tests/test_cuda_stream.py 2>&1 | tee pytest.log
-stream_exit=${PIPESTATUS[0]}
-
-# Run test_cuda_CUDAGraph.py in its own process as well: CUDA graph
-# capture/replay leaves Paddle GPU state that can natively crash later
-# AMP tests (e.g. test_cuda_amp_GradScaler) in the same pytest worker.
-python -m pytest -v -s -p no:warnings tests/test_cuda_CUDAGraph.py 2>&1 | tee -a pytest.log
-cudagraph_exit=${PIPESTATUS[0]}
-
-# set_stream installs a process-global Paddle stream owned by the temporary exec
-# namespace. Run it separately so namespace cleanup cannot poison later GPU tests.
-python -m pytest -v -s -p no:warnings tests/test_cuda_set_stream.py 2>&1 | tee -a pytest.log
-setstream_exit=${PIPESTATUS[0]}
-
-python -m pytest -v -s -p no:warnings tests/test_set_num_interop_threads.py 2>&1 | tee -a pytest.log
-interop_threads_exit=${PIPESTATUS[0]}
+python -m pytest -v -s -p no:warnings "${ISOLATED_TESTS[@]}" \
+    -n 1 --reruns=3 2>&1 | tee pytest.log
+isolated_errors=${PIPESTATUS[0]}
 
 python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" \
     -n 1 --reruns=3 ./tests 2>&1 | tee -a pytest.log
@@ -81,18 +71,8 @@ if [ ${check_errors} -ne 0 ]; then
     check_errors=${PIPESTATUS[0]}
 fi
 
-# Propagate isolated test failures if any
-if [ ${stream_exit} -ne 0 ]; then
-    check_errors=${stream_exit}
-fi
-if [ ${cudagraph_exit} -ne 0 ]; then
-    check_errors=${cudagraph_exit}
-fi
-if [ ${setstream_exit} -ne 0 ]; then
-    check_errors=${setstream_exit}
-fi
-if [ ${interop_threads_exit} -ne 0 ]; then
-    check_errors=${interop_threads_exit}
+if [ ${isolated_errors} -ne 0 ]; then
+    check_errors=${isolated_errors}
 fi
 
 echo '******************************************************************************'

@@ -16,15 +16,20 @@ import difflib
 import os
 import re
 import sys
+from contextlib import nullcontext
 
 import numpy as np
 
 sys.path.append(os.path.dirname(__file__) + "/..")
-sys.path.append(os.path.dirname(__file__))
-
-from conftest import disable_paddle_compat
 
 from paconvert.converter import Converter
+
+
+def _pytorch_exec_guard():
+    paddle = sys.modules.get("paddle")
+    if paddle is None:
+        return nullcontext()
+    return paddle.use_compat_guard(enable=False)
 
 
 class APIBase(object):
@@ -88,55 +93,61 @@ class APIBase(object):
                 )
                 assert paddle_code == expect_paddle_code, error_msg
         elif compared_tensor_names:
-            disable_paddle_compat()
             pytorch_ns = {}
             try:
-                exec(pytorch_code, pytorch_ns)
+                with _pytorch_exec_guard():
+                    exec(pytorch_code, pytorch_ns)
             except Exception as e:
                 raise RuntimeError(f"Failed to execute pytorch code:\n{e}")
             pytorch_result = [pytorch_ns[name] for name in compared_tensor_names]
             pytorch_ns.clear()
 
-            paddle_ns = {}
-            try:
-                exec(paddle_code, paddle_ns)
-            except Exception as e:
-                raise RuntimeError(f"Failed to execute paddle code:\n{e}")
-            paddle_result = [paddle_ns[name] for name in compared_tensor_names]
-            paddle_ns.clear()
+            import paddle
 
-            for i in range(len(compared_tensor_names)):
+            paddle_ns = {}
+            with paddle.use_compat_guard(level=None):
                 try:
-                    self.compare(
-                        self.pytorch_api,
-                        pytorch_result[i],
-                        paddle_result[i],
-                        check_value,
-                        check_shape,
-                        check_dtype,
-                        check_stop_gradient,
-                        rtol,
-                        atol,
-                    )
+                    exec(paddle_code, paddle_ns)
                 except Exception as e:
-                    raise AssertionError(f"Unable to align results: {e}")
+                    raise RuntimeError(f"Failed to execute paddle code:\n{e}")
+                paddle_result = [paddle_ns[name] for name in compared_tensor_names]
+                paddle_ns.clear()
+
+                for i in range(len(compared_tensor_names)):
+                    try:
+                        self.compare(
+                            self.pytorch_api,
+                            pytorch_result[i],
+                            paddle_result[i],
+                            check_value,
+                            check_shape,
+                            check_dtype,
+                            check_stop_gradient,
+                            rtol,
+                            atol,
+                        )
+                    except Exception as e:
+                        raise AssertionError(f"Unable to align results: {e}")
         else:
-            disable_paddle_compat()
             pytorch_ns = {}
             try:
-                exec(pytorch_code, pytorch_ns)
+                with _pytorch_exec_guard():
+                    exec(pytorch_code, pytorch_ns)
             except Exception as e:
                 raise RuntimeError(f"Failed to execute pytorch code:\n{e}")
             finally:
                 pytorch_ns.clear()
 
+            import paddle
+
             paddle_ns = {}
-            try:
-                exec(paddle_code, paddle_ns)
-            except Exception as e:
-                raise RuntimeError(f"Failed to execute paddle code:\n{e}")
-            finally:
-                paddle_ns.clear()
+            with paddle.use_compat_guard(level=None):
+                try:
+                    exec(paddle_code, paddle_ns)
+                except Exception as e:
+                    raise RuntimeError(f"Failed to execute paddle code:\n{e}")
+                finally:
+                    paddle_ns.clear()
 
     def compare(
         self,

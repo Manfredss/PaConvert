@@ -38,6 +38,10 @@ echo '**************************************************************************
 echo "Checking code cpu unit test by pytest ..."
 set +e
 
+ISOLATED_TESTS=(
+    tests/test_set_num_interop_threads.py
+)
+
 PYTEST_IGNORE=(
     --ignore=tests/test_backends_cuda_is_built.py
     --ignore=tests/test_cuda_is_bf16_supported.py
@@ -48,21 +52,26 @@ PYTEST_IGNORE=(
     --ignore=tests/test_hub_list.py
     --ignore=tests/test_hub_load.py
     --ignore=tests/test_hub_load_state_dict_from_url.py
-    --ignore=tests/test_set_num_interop_threads.py
 )
+for test_file in "${ISOLATED_TESTS[@]}"; do
+    PYTEST_IGNORE+=(--ignore="${test_file}")
+done
 
-python -m pytest -v -s -p no:warnings tests/test_set_num_interop_threads.py 2>&1 | tee -a pytest.log
-interop_threads_exit=${PIPESTATUS[0]}
-if [ ${interop_threads_exit} -ne 0 ]; then
-    check_errors=${interop_threads_exit}
-fi
+python -m pytest -v -s -p no:warnings "${ISOLATED_TESTS[@]}" \
+    --reruns=3 2>&1 | tee pytest.log
+isolated_errors=${PIPESTATUS[0]}
 
-python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" --reruns=3 ./tests 2>&1 | tee pytest.log
+python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" \
+    --reruns=3 ./tests 2>&1 | tee -a pytest.log
 check_errors=${PIPESTATUS[0]}
 if [ ${check_errors} -ne 0 ]; then
     echo "Rerun CPU unit test"
     python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" --lf ./tests 2>&1 | tee -a pytest.log
     check_errors=${PIPESTATUS[0]}
+fi
+
+if [ ${isolated_errors} -ne 0 ]; then
+    check_errors=${isolated_errors}
 fi
 
 echo '******************************************************************************'
