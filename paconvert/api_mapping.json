@@ -7810,10 +7810,7 @@
       "dtype"
     ],
     "kwargs_change": {
-      "input": "input",
-      "dim": "dim",
-      "_stacklevel": "",
-      "dtype": "dtype"
+      "_stacklevel": ""
     },
     "min_input_args": 1
   },
