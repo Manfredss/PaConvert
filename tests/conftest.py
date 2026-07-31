@@ -37,27 +37,6 @@ import sys
 import pytest
 
 
-def disable_paddle_compat():
-    if "paddle" not in sys.modules:
-        return
-
-    try:
-        from paddle.compat.proxy import TORCH_PROXY_FINDER
-    except (ImportError, ModuleNotFoundError):
-        return
-
-    if TORCH_PROXY_FINDER not in sys.meta_path:
-        return
-
-    try:
-        import paddle
-
-        paddle.disable_compat()
-    except (AttributeError, ImportError, ModuleNotFoundError):
-        if TORCH_PROXY_FINDER in sys.meta_path:
-            sys.meta_path.remove(TORCH_PROXY_FINDER)
-
-
 def _snapshot_environ():
     """Record the process environment so env-var writes can be reverted.
 
@@ -264,7 +243,6 @@ def _reset_global_state():
     ``paddle.Tensor`` / ``paddle.nn.*`` classes, and (4) environment variables
     such as ``CPU_NUM`` written by converted ``set_num_threads`` code.
     """
-    disable_paddle_compat()
     torch_snap = _snapshot_torch()
     paddle_snap = _snapshot_paddle()
     patch_snap = _snapshot_patches()
@@ -272,7 +250,6 @@ def _reset_global_state():
     try:
         yield
     finally:
-        disable_paddle_compat()
         _restore_patches(patch_snap)
         _restore_torch(torch_snap)
         _restore_paddle(paddle_snap)

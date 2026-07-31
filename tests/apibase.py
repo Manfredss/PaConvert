@@ -105,7 +105,7 @@ class APIBase(object):
             import paddle
 
             paddle_ns = {}
-            with paddle.use_compat_guard(level=None):
+            with paddle.use_compat_guard(enable=False):
                 try:
                     exec(paddle_code, paddle_ns)
                 except Exception as e:
@@ -141,7 +141,7 @@ class APIBase(object):
             import paddle
 
             paddle_ns = {}
-            with paddle.use_compat_guard(level=None):
+            with paddle.use_compat_guard(enable=False):
                 try:
                     exec(paddle_code, paddle_ns)
                 except Exception as e:
