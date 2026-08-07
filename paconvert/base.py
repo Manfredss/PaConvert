@@ -435,8 +435,6 @@ class BaseMatcher(object):
             new_paddle_api = re.sub(
                 class_str, lambda m: self.paddleClass, self.get_paddle_api(), count=1
             )
-            # reverse escape
-            new_paddle_api = re.sub(r"\\(.)", r"\1", new_paddle_api)
             self.paddle_api = new_paddle_api
 
     def args_to_str(self, args):
