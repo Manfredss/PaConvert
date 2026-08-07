@@ -60,7 +60,12 @@ def test_case_4():
         result = a.type()
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
+    )
 
 
 def test_case_5():
@@ -93,7 +98,12 @@ def test_case_7():
         result = a.type(dtype=None, non_blocking=False)
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
+    )
 
 
 def test_case_8():
@@ -140,7 +150,12 @@ def test_case_11():
         result = a.type(**kwargs)
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
+    )
 
 
 def test_case_12():
@@ -155,7 +170,12 @@ def test_case_12():
         result = a.type()
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return 'torch.sparse.FloatTensor' while Paddle return 'paddle.float32', which does not encode the sparse layout",
+    )
 
 
 def test_case_13():
@@ -171,7 +191,12 @@ def test_case_13():
         ]
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
+    )
 
 
 def test_case_14():
@@ -212,4 +237,9 @@ def test_case_16():
         ]
         """
     )
-    obj.run(pytorch_code, ["result"])
+    obj.run(
+        pytorch_code,
+        ["result"],
+        check_value=False,
+        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
+    )
