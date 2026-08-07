@@ -327,33 +327,3 @@ def test_case_20():
         """
     )
     obj.run(pytorch_code, ["result"])
-
-
-def test_case_21():
-    import importlib
-
-    import paddle
-    import torch
-
-    class GuardCheckingAPIBase(APIBase):
-        def compare(self, *args, **kwargs):
-            result = paddle.sort(paddle.to_tensor([2.0, 1.0]), dim=0)
-            assert hasattr(result, "values")
-            return super().compare(*args, **kwargs)
-
-    guard_obj = GuardCheckingAPIBase("torch.nn.PReLU")
-    native_prelu = paddle.nn.PReLU
-    native_torch = torch
-    pytorch_code = textwrap.dedent(
-        """
-        import torch
-        x = torch.tensor([[-2.0, -0.5, 0.75, 1.5]])
-        result = torch.nn.PReLU(1, 0.45)(x)
-        """
-    )
-
-    guard_obj.run(pytorch_code, ["result"])
-    guard_obj.run(pytorch_code, ["result"])
-
-    assert paddle.nn.PReLU is native_prelu
-    assert importlib.import_module("torch") is native_torch

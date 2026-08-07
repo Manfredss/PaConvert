@@ -16,20 +16,12 @@ import difflib
 import os
 import re
 import sys
-from contextlib import nullcontext
 
 import numpy as np
 
 sys.path.append(os.path.dirname(__file__) + "/..")
 
 from paconvert.converter import Converter
-
-
-def _pytorch_exec_guard():
-    paddle = sys.modules.get("paddle")
-    if paddle is None:
-        return nullcontext()
-    return paddle.use_compat_guard(enable=False)
 
 
 class APIBase(object):
@@ -95,8 +87,7 @@ class APIBase(object):
         elif compared_tensor_names:
             pytorch_ns = {}
             try:
-                with _pytorch_exec_guard():
-                    exec(pytorch_code, pytorch_ns)
+                exec(pytorch_code, pytorch_ns)
             except Exception as e:
                 raise RuntimeError(f"Failed to execute pytorch code:\n{e}")
             pytorch_result = [pytorch_ns[name] for name in compared_tensor_names]
@@ -131,8 +122,7 @@ class APIBase(object):
         else:
             pytorch_ns = {}
             try:
-                with _pytorch_exec_guard():
-                    exec(pytorch_code, pytorch_ns)
+                exec(pytorch_code, pytorch_ns)
             except Exception as e:
                 raise RuntimeError(f"Failed to execute pytorch code:\n{e}")
             finally:

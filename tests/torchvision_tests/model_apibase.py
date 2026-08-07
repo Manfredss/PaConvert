@@ -44,8 +44,7 @@ class ModelAPIBase(APIBase):
             else:
                 simple_input = np.random.rand(1, 3, 224, 224).astype(np.float32)
 
-            with paddle.use_compat_guard(enable=False):
-                pytorch_output = pytorch_result(torch.tensor(simple_input))
+            pytorch_output = pytorch_result(torch.tensor(simple_input))
             paddle_output = paddle_result(paddle.to_tensor(simple_input))
 
             if isinstance(pytorch_output, torch.Tensor):
