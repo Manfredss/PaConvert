@@ -43,6 +43,10 @@ ISOLATED_TESTS=(
     tests/test_cuda_stream.py
     tests/test_cuda_CUDAGraph.py
     tests/test_cuda_set_stream.py
+    tests/test_cpu_set_device.py
+    tests/test_set_default_device.py
+    tests/test_get_default_device.py
+    tests/test_set_num_threads.py
     tests/test_set_num_interop_threads.py
 )
 

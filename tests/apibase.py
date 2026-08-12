@@ -23,6 +23,74 @@ sys.path.append(os.path.dirname(__file__) + "/..")
 
 from paconvert.converter import Converter
 
+_SENTINEL = object()
+
+
+def _patch_targets(paddle):
+    """Global paddle classes that converted code monkeypatches via ``setattr``.
+
+    Converted code frequently ends with e.g.
+    ``setattr(paddle.Tensor, "add", _Tensor_add)`` or
+    ``setattr(paddle.nn.LogSoftmax, "forward", _log_softmax_forward)``, where the
+    helper is defined in the exec namespace. The patch lands on the *global*
+    class, so without restoring it the next test keeps running against the
+    previous test's implementation.
+    """
+    targets = [paddle.Tensor]
+    nn = getattr(paddle, "nn", None)
+    if nn is not None:
+        for name in dir(nn):
+            obj = getattr(nn, name, None)
+            if isinstance(obj, type):
+                targets.append(obj)
+    return targets
+
+
+def _snapshot_patches(paddle):
+    snap = []
+    for target in _patch_targets(paddle):
+        try:
+            snap.append((target, dict(vars(target))))
+        except TypeError:
+            continue
+    return snap
+
+
+def _is_compat_owned(obj):
+    """Whether ``obj`` was installed by ``paddle.enable_compat``, not by a test.
+
+    ``paddle.compat`` installs caller-aware dispatchers that carry
+    ``__compat_fn__``/``__native_fn__`` (see ``paddle/compat/api_dispatch.py``)
+    and keeps its own bookkeeping of what it replaced. Reverting those behind
+    paddle's back leaves it unable to reinstall them, so they must be left
+    alone; only plain helpers set by the converted code are ours to clean up.
+    """
+    return hasattr(obj, "__compat_fn__") or hasattr(obj, "__native_fn__")
+
+
+def _restore_patches(snap):
+    """Revert only the attributes the exec'd code added or replaced."""
+    for target, attrs in snap:
+        try:
+            current = dict(vars(target))
+        except TypeError:
+            continue
+        for name, original in attrs.items():
+            now = current.get(name, _SENTINEL)
+            if now is original or _is_compat_owned(now):
+                continue
+            try:
+                setattr(target, name, original)
+            except (AttributeError, TypeError):
+                pass
+        for name, now in current.items():
+            if name in attrs or _is_compat_owned(now):
+                continue
+            try:
+                delattr(target, name)
+            except (AttributeError, TypeError):
+                pass
+
 
 class APIBase(object):
     def __init__(self, pytorch_api) -> None:
@@ -97,28 +165,35 @@ class APIBase(object):
 
             paddle_ns = {}
             with paddle.use_compat_guard(enable=False):
+                patch_snap = _snapshot_patches(paddle)
                 try:
                     exec(paddle_code, paddle_ns)
                 except Exception as e:
                     raise RuntimeError(f"Failed to execute paddle code:\n{e}")
                 paddle_result = [paddle_ns[name] for name in compared_tensor_names]
-                paddle_ns.clear()
 
-                for i in range(len(compared_tensor_names)):
-                    try:
-                        self.compare(
-                            self.pytorch_api,
-                            pytorch_result[i],
-                            paddle_result[i],
-                            check_value,
-                            check_shape,
-                            check_dtype,
-                            check_stop_gradient,
-                            rtol,
-                            atol,
-                        )
-                    except Exception as e:
-                        raise AssertionError(f"Unable to align results: {e}")
+                try:
+                    for i in range(len(compared_tensor_names)):
+                        try:
+                            self.compare(
+                                self.pytorch_api,
+                                pytorch_result[i],
+                                paddle_result[i],
+                                check_value,
+                                check_shape,
+                                check_dtype,
+                                check_stop_gradient,
+                                rtol,
+                                atol,
+                            )
+                        except Exception as e:
+                            raise AssertionError(f"Unable to align results: {e}")
+                finally:
+                    # The converted code patches global paddle classes with
+                    # helpers defined in ``paddle_ns``; revert them so the next
+                    # test does not run against this test's implementations.
+                    _restore_patches(patch_snap)
+                    paddle_ns.clear()
         else:
             pytorch_ns = {}
             try:
@@ -132,11 +207,13 @@ class APIBase(object):
 
             paddle_ns = {}
             with paddle.use_compat_guard(enable=False):
+                patch_snap = _snapshot_patches(paddle)
                 try:
                     exec(paddle_code, paddle_ns)
                 except Exception as e:
                     raise RuntimeError(f"Failed to execute paddle code:\n{e}")
                 finally:
+                    _restore_patches(patch_snap)
                     paddle_ns.clear()
 
     def compare(
