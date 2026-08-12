@@ -26,15 +26,11 @@ from paconvert.converter import Converter
 _SENTINEL = object()
 
 
-def _patch_targets(paddle):
-    """Global paddle classes that converted code monkeypatches via ``setattr``.
+def _snapshot_patches(paddle):
+    """Snapshot paddle classes that converted code patches via ``setattr``.
 
-    Converted code frequently ends with e.g.
-    ``setattr(paddle.Tensor, "add", _Tensor_add)`` or
-    ``setattr(paddle.nn.LogSoftmax, "forward", _log_softmax_forward)``, where the
-    helper is defined in the exec namespace. The patch lands on the *global*
-    class, so without restoring it the next test keeps running against the
-    previous test's implementation.
+    The helper is defined in the exec namespace but the patch lands on the
+    global class, so it must be reverted after each test.
     """
     targets = [paddle.Tensor]
     nn = getattr(paddle, "nn", None)
@@ -43,27 +39,18 @@ def _patch_targets(paddle):
             obj = getattr(nn, name, None)
             if isinstance(obj, type):
                 targets.append(obj)
-    return targets
 
-
-def _snapshot_patches(paddle):
     snap = []
-    for target in _patch_targets(paddle):
-        try:
-            snap.append((target, dict(vars(target))))
-        except TypeError:
-            continue
+    for target in targets:
+        snap.append((target, dict(vars(target))))
     return snap
 
 
 def _is_compat_owned(obj):
-    """Whether ``obj`` was installed by ``paddle.enable_compat``, not by a test.
+    """Whether ``obj`` is a ``paddle.enable_compat`` dispatcher rather than a test patch.
 
-    ``paddle.compat`` installs caller-aware dispatchers that carry
-    ``__compat_fn__``/``__native_fn__`` (see ``paddle/compat/api_dispatch.py``)
-    and keeps its own bookkeeping of what it replaced. Reverting those behind
-    paddle's back leaves it unable to reinstall them, so they must be left
-    alone; only plain helpers set by the converted code are ours to clean up.
+    Compat keeps its own list of what it replaced, so reverting these behind
+    paddle's back leaves it unable to reinstall them.
     """
     return hasattr(obj, "__compat_fn__") or hasattr(obj, "__native_fn__")
 
@@ -71,25 +58,16 @@ def _is_compat_owned(obj):
 def _restore_patches(snap):
     """Revert only the attributes the exec'd code added or replaced."""
     for target, attrs in snap:
-        try:
-            current = dict(vars(target))
-        except TypeError:
-            continue
+        current = dict(vars(target))
         for name, original in attrs.items():
             now = current.get(name, _SENTINEL)
             if now is original or _is_compat_owned(now):
                 continue
-            try:
-                setattr(target, name, original)
-            except (AttributeError, TypeError):
-                pass
+            setattr(target, name, original)
         for name, now in current.items():
             if name in attrs or _is_compat_owned(now):
                 continue
-            try:
-                delattr(target, name)
-            except (AttributeError, TypeError):
-                pass
+            delattr(target, name)
 
 
 class APIBase(object):
