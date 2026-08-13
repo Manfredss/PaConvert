@@ -57,15 +57,12 @@ def test_case_4():
         """
         import torch
         a = torch.Tensor([1,2,3])
-        result = a.type()
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
+        result = a.type().split(".", 1)[1]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
-    )
+    obj.run(pytorch_code, ["result"])
 
 
 def test_case_5():
@@ -95,15 +92,12 @@ def test_case_7():
         """
         import torch
         a = torch.ones(2, 3, device="cpu")
-        result = a.type(dtype=None, non_blocking=False)
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
+        result = a.type(dtype=None, non_blocking=False).split(".", 1)[1]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
-    )
+    obj.run(pytorch_code, ["result"])
 
 
 def test_case_8():
@@ -147,15 +141,12 @@ def test_case_11():
         import torch
         a = torch.ones(2, 3, device="cpu")
         kwargs = {"async": True}
-        result = a.type(**kwargs)
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
+        result = a.type(**kwargs).split(".", 1)[1]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
-    )
+    obj.run(pytorch_code, ["result"])
 
 
 def test_case_12():
@@ -167,36 +158,33 @@ def test_case_12():
         a = torch.sparse_coo_tensor(
             indices, values, [2, 2], device="cpu"
         )
-        result = a.type()
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
+        result = a.type().split(".", 1)[1]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return 'torch.sparse.FloatTensor' while Paddle return 'paddle.float32', which does not encode the sparse layout",
-    )
+    obj.run(pytorch_code, ["result"])
 
 
 def test_case_13():
     pytorch_code = textwrap.dedent(
         """
         import torch
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
         result = [
-            torch.ones(1, dtype=torch.bool, device="cpu").type(),
-            torch.ones(1, dtype=torch.int32, device="cpu").type(),
-            torch.ones(1, dtype=torch.float64, device="cpu").type(),
-            torch.ones(1, dtype=torch.bfloat16, device="cpu").type(),
-            torch.ones(1, dtype=torch.complex64, device="cpu").type(),
+            t.type().split(".", 1)[1]
+            for t in (
+                torch.ones(1, dtype=torch.bool, device="cpu"),
+                torch.ones(1, dtype=torch.int32, device="cpu"),
+                torch.ones(1, dtype=torch.float64, device="cpu"),
+                torch.ones(1, dtype=torch.bfloat16, device="cpu"),
+                torch.ones(1, dtype=torch.complex64, device="cpu"),
+            )
         ]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
-    )
+    obj.run(pytorch_code, ["result"])
 
 
 def test_case_14():
@@ -231,15 +219,12 @@ def test_case_16():
         """
         import torch
         a = torch.ones(2, 3)
+        # paddle returns paddle.FloatTensor etc, so drop the namespace
+        # prefix and compare the remaining segments
         result = [
-            a.type("torch.Float8_e4m3fnTensor").type(),
-            a.type("torch.Float8_e5m2Tensor").type(),
+            a.type("torch.Float8_e4m3fnTensor").type().split(".", 1)[1],
+            a.type("torch.Float8_e5m2Tensor").type().split(".", 1)[1],
         ]
         """
     )
-    obj.run(
-        pytorch_code,
-        ["result"],
-        check_value=False,
-        reason="Pytorch return tensor type name like 'torch.FloatTensor' while Paddle return dtype name like 'paddle.float32'",
-    )
+    obj.run(pytorch_code, ["result"])

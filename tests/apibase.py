@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import contextlib
 import difflib
 import os
 import re
@@ -68,6 +69,16 @@ def _restore_patches(snap):
             if name in attrs or _is_compat_owned(now):
                 continue
             delattr(target, name)
+
+
+@contextlib.contextmanager
+def _compat_disabled(paddle):
+    """Run the block with compat off, and leave it off afterwards."""
+    paddle.disable_compat()
+    try:
+        yield
+    finally:
+        paddle.disable_compat()
 
 
 class APIBase(object):
@@ -142,7 +153,7 @@ class APIBase(object):
             import paddle
 
             paddle_ns = {}
-            with paddle.use_compat_guard(enable=False):
+            with _compat_disabled(paddle):
                 patch_snap = _snapshot_patches(paddle)
                 try:
                     exec(paddle_code, paddle_ns)
@@ -167,9 +178,6 @@ class APIBase(object):
                         except Exception as e:
                             raise AssertionError(f"Unable to align results: {e}")
                 finally:
-                    # The converted code patches global paddle classes with
-                    # helpers defined in ``paddle_ns``; revert them so the next
-                    # test does not run against this test's implementations.
                     _restore_patches(patch_snap)
                     paddle_ns.clear()
         else:
@@ -184,7 +192,7 @@ class APIBase(object):
             import paddle
 
             paddle_ns = {}
-            with paddle.use_compat_guard(enable=False):
+            with _compat_disabled(paddle):
                 patch_snap = _snapshot_patches(paddle)
                 try:
                     exec(paddle_code, paddle_ns)
