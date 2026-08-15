@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import contextlib
 import difflib
 import os
 import re
@@ -23,62 +22,6 @@ import numpy as np
 sys.path.append(os.path.dirname(__file__) + "/..")
 
 from paconvert.converter import Converter
-
-_SENTINEL = object()
-
-
-def _snapshot_patches(paddle):
-    """Snapshot paddle classes that converted code patches via ``setattr``.
-
-    The helper is defined in the exec namespace but the patch lands on the
-    global class, so it must be reverted after each test.
-    """
-    targets = [paddle.Tensor]
-    nn = getattr(paddle, "nn", None)
-    if nn is not None:
-        for name in dir(nn):
-            obj = getattr(nn, name, None)
-            if isinstance(obj, type):
-                targets.append(obj)
-
-    snap = []
-    for target in targets:
-        snap.append((target, dict(vars(target))))
-    return snap
-
-
-def _is_compat_owned(obj):
-    """Whether ``obj`` is a ``paddle.enable_compat`` dispatcher rather than a test patch.
-
-    Compat keeps its own list of what it replaced, so reverting these behind
-    paddle's back leaves it unable to reinstall them.
-    """
-    return hasattr(obj, "__compat_fn__") or hasattr(obj, "__native_fn__")
-
-
-def _restore_patches(snap):
-    """Revert only the attributes the exec'd code added or replaced."""
-    for target, attrs in snap:
-        current = dict(vars(target))
-        for name, original in attrs.items():
-            now = current.get(name, _SENTINEL)
-            if now is original or _is_compat_owned(now):
-                continue
-            setattr(target, name, original)
-        for name, now in current.items():
-            if name in attrs or _is_compat_owned(now):
-                continue
-            delattr(target, name)
-
-
-@contextlib.contextmanager
-def _compat_disabled(paddle):
-    """Run the block with compat off, and leave it off afterwards."""
-    paddle.disable_compat()
-    try:
-        yield
-    finally:
-        paddle.disable_compat()
 
 
 class APIBase(object):
@@ -150,36 +93,29 @@ class APIBase(object):
             pytorch_result = [pytorch_ns[name] for name in compared_tensor_names]
             pytorch_ns.clear()
 
-            import paddle
-
             paddle_ns = {}
-            with _compat_disabled(paddle):
-                patch_snap = _snapshot_patches(paddle)
-                try:
-                    exec(paddle_code, paddle_ns)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to execute paddle code:\n{e}")
-                paddle_result = [paddle_ns[name] for name in compared_tensor_names]
+            try:
+                exec(paddle_code, paddle_ns)
+            except Exception as e:
+                raise RuntimeError(f"Failed to execute paddle code:\n{e}")
+            paddle_result = [paddle_ns[name] for name in compared_tensor_names]
+            paddle_ns.clear()
 
+            for i in range(len(compared_tensor_names)):
                 try:
-                    for i in range(len(compared_tensor_names)):
-                        try:
-                            self.compare(
-                                self.pytorch_api,
-                                pytorch_result[i],
-                                paddle_result[i],
-                                check_value,
-                                check_shape,
-                                check_dtype,
-                                check_stop_gradient,
-                                rtol,
-                                atol,
-                            )
-                        except Exception as e:
-                            raise AssertionError(f"Unable to align results: {e}")
-                finally:
-                    _restore_patches(patch_snap)
-                    paddle_ns.clear()
+                    self.compare(
+                        self.pytorch_api,
+                        pytorch_result[i],
+                        paddle_result[i],
+                        check_value,
+                        check_shape,
+                        check_dtype,
+                        check_stop_gradient,
+                        rtol,
+                        atol,
+                    )
+                except Exception as e:
+                    raise AssertionError(f"Unable to align results: {e}")
         else:
             pytorch_ns = {}
             try:
@@ -189,18 +125,13 @@ class APIBase(object):
             finally:
                 pytorch_ns.clear()
 
-            import paddle
-
             paddle_ns = {}
-            with _compat_disabled(paddle):
-                patch_snap = _snapshot_patches(paddle)
-                try:
-                    exec(paddle_code, paddle_ns)
-                except Exception as e:
-                    raise RuntimeError(f"Failed to execute paddle code:\n{e}")
-                finally:
-                    _restore_patches(patch_snap)
-                    paddle_ns.clear()
+            try:
+                exec(paddle_code, paddle_ns)
+            except Exception as e:
+                raise RuntimeError(f"Failed to execute paddle code:\n{e}")
+            finally:
+                paddle_ns.clear()
 
     def compare(
         self,

@@ -6925,16 +6925,10 @@
   },
   "torch.nn.Softmin": {
     "Matcher": "SoftminMatcher",
-    "paddle_api": "paddle.nn.Softmax",
+    "paddle_api": "Softmin",
     "args_list": [
       "dim"
     ],
-    "kwargs_change": {
-      "dim": "axis"
-    },
-    "paddle_default_kwargs": {
-      "axis": null
-    },
     "min_input_args": 0
   },
   "torch.nn.Softplus": {

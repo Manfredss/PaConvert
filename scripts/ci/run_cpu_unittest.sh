@@ -39,7 +39,10 @@ echo "Checking code cpu unit test by pytest ..."
 set +e
 
 ISOLATED_TESTS=(
+    tests/test_set_num_threads.py
     tests/test_set_num_interop_threads.py
+    tests/test_set_default_dtype.py
+    tests/test_set_default_tensor_type.py
 )
 
 PYTEST_IGNORE=(

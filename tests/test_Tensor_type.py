@@ -92,9 +92,7 @@ def test_case_7():
         """
         import torch
         a = torch.ones(2, 3, device="cpu")
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
-        result = a.type(dtype=None, non_blocking=False).split(".", 1)[1]
+        result = a.type(dtype=torch.float64, non_blocking=False)
         """
     )
     obj.run(pytorch_code, ["result"])
@@ -140,10 +138,8 @@ def test_case_11():
         """
         import torch
         a = torch.ones(2, 3, device="cpu")
-        kwargs = {"async": True}
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
-        result = a.type(**kwargs).split(".", 1)[1]
+        kwargs = {"dtype": torch.float64, "async": True}
+        result = a.type(**kwargs)
         """
     )
     obj.run(pytorch_code, ["result"])
