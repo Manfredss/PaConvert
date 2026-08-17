@@ -57,8 +57,6 @@ def test_case_4():
         """
         import torch
         a = torch.Tensor([1,2,3])
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
         result = a.type().split(".", 1)[1]
         """
     )
@@ -154,8 +152,6 @@ def test_case_12():
         a = torch.sparse_coo_tensor(
             indices, values, [2, 2], device="cpu"
         )
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
         result = a.type().split(".", 1)[1]
         """
     )
@@ -166,8 +162,6 @@ def test_case_13():
     pytorch_code = textwrap.dedent(
         """
         import torch
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
         result = [
             t.type().split(".", 1)[1]
             for t in (
@@ -215,8 +209,6 @@ def test_case_16():
         """
         import torch
         a = torch.ones(2, 3)
-        # paddle returns paddle.FloatTensor etc, so drop the namespace
-        # prefix and compare the remaining segments
         result = [
             a.type("torch.Float8_e4m3fnTensor").type().split(".", 1)[1],
             a.type("torch.Float8_e5m2Tensor").type().split(".", 1)[1],
