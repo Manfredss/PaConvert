@@ -52,6 +52,10 @@ ISOLATED_TESTS=(
     tests/test_set_default_tensor_type.py
 )
 
+ORDER_SENSITIVE_TESTS=(
+    tests/test_nn_LogSoftmax.py
+)
+
 PYTEST_IGNORE=(
     --ignore=tests/test_hub_download_url_to_file.py
     --ignore=tests/test_hub_help.py
@@ -62,10 +66,17 @@ PYTEST_IGNORE=(
 for test_file in "${ISOLATED_TESTS[@]}"; do
     PYTEST_IGNORE+=(--ignore="${test_file}")
 done
+for test_file in "${ORDER_SENSITIVE_TESTS[@]}"; do
+    PYTEST_IGNORE+=(--ignore="${test_file}")
+done
 
 python -m pytest -v -s -p no:warnings "${ISOLATED_TESTS[@]}" \
     -n 1 --reruns=3 2>&1 | tee pytest.log
 isolated_errors=${PIPESTATUS[0]}
+
+python -m pytest -v -s -p no:warnings "${ORDER_SENSITIVE_TESTS[@]}" \
+    --reruns=3 2>&1 | tee -a pytest.log
+order_sensitive_errors=${PIPESTATUS[0]}
 
 python -m pytest -v -s -p no:warnings "${PYTEST_IGNORE[@]}" \
     -n 1 --reruns=3 ./tests 2>&1 | tee -a pytest.log
@@ -79,6 +90,9 @@ fi
 
 if [ ${isolated_errors} -ne 0 ]; then
     check_errors=${isolated_errors}
+fi
+if [ ${order_sensitive_errors} -ne 0 ]; then
+    check_errors=${order_sensitive_errors}
 fi
 
 echo '******************************************************************************'
